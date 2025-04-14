@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Tables in 3 Languages</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      background: #fffde7;
+      text-align: center;
+      padding: 40px;
+    }
+
+    h1 {
+      color: #2e7d32;
+    }
+
+    select, button, input {
+      padding: 10px;
+      font-size: 16px;
+      margin: 10px;
+      width: 240px;
+    }
+
+    .output {
+      font-size: 20px;
+      margin-top: 20px;
+      line-height: 1.8;
+    }
+
+    .table-line {
+      background-color: #d0f0ff;
+      color: #000;
+      padding: 10px 15px;
+      margin: 8px auto;
+      border-radius: 10px;
+      width: 80%;
+      text-align: left;
+      font-weight: bold;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      display: flex;
+      align-items: center;
+    }
+
+    .table-line img {
+      width: 40px;
+      margin-right: 10px;
+    }
+
+    #quizArea {
+      margin-top: 25px;
+    }
+
+    #answer {
+      width: 100px;
+      font-size: 18px;
+    }
+
+    #feedback {
+      font-weight: bold;
+      margin-top: 10px;
+    }
+
+    #avatar {
+      width: 100px;
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>📚 Tables in 3 Languages</h1>
+
+  <img src="avatar.png" id="avatar" alt="Cartoon Character" />
+
+  <label>🌐 Language:</label><br>
+  <select id="language">
+    <option value="en">English</option>
+    <option value="hi">Hindi</option>
+    <option value="or">Odia</option>
+  </select><br>
+
+  <label>🔢 Table (1–50):</label><br>
+  <select id="table"></select><br>
+
+  <label>🎤 Voice:</label><br>
+  <select id="voice"></select><br>
+
+  <audio id="bgMusic" src="fun-music.mp3" loop></audio>
+
+  <br>
+  <button onclick="playTable()">▶️ Play</button>
+  <button onclick="repeatTable()">🔁 Repeat</button>
+  <button onclick="stopAll()">⏹ Stop</button>
+
+  <div class="output" id="output"></div>
+
+  <div id="quizArea" style="display:none;">
+    <p id="questionText"></p>
+    <input type="number" id="answer" placeholder="Your answer" />
+    <button onclick="checkAnswer()">Submit</button>
+    <p id="feedback"></p>
+  </div>
+
+  <script>
+    const tableSelect = document.getElementById("table");
+    const voiceSelect = document.getElementById("voice");
+    const languageSelect = document.getElementById("language");
+    const output = document.getElementById("output");
+    const bgMusic = document.getElementById("bgMusic");
+
+    const quizArea = document.getElementById("quizArea");
+    const questionText = document.getElementById("questionText");
+    const answerInput = document.getElementById("answer");
+    const feedback = document.getElementById("feedback");
+
+    let voices = [];
+    let lastUtterances = [];
+    let quizQueue = [];
+    let currentQuestion = null;
+
+    const synth = window.speechSynthesis;
+
+    for (let i = 1; i <= 50; i++) {
+      const opt = document.createElement("option");
+      opt.value = i;
+      opt.textContent = `Table of ${i}`;
+      tableSelect.appendChild(opt);
+    }
+
+    function populateVoices() {
+      voices = synth.getVoices();
+      updateVoiceList();
+    }
+
+    function updateVoiceList() {
+      const langCode = languageSelect.value;
+      voiceSelect.innerHTML = "";
+      voices
+        .filter(v => v.lang.startsWith(langCode))
+        .forEach(voice => {
+          const opt = document.createElement("option");
+          opt.value = voice.name;
+          opt.textContent = `${voice.name} (${voice.lang})`;
+          voiceSelect.appendChild(opt);
+        });
+    }
+
+    languageSelect.addEventListener("change", updateVoiceList);
+    speechSynthesis.onvoiceschanged = populateVoices;
+
+    function getRhymeLine(num, i, lang) {
+      const product = num * i;
+      if (lang === 'hi') {
+        return `${num} का ${i} गुना है ${product}, याद रखो प्यारे भाई!`;
+      } else if (lang === 'or') {
+        return `${num} ଗୁଣି ${i} ହେଉଛି ${product}, ମନେ ରଖ!`;
+      } else {
+        return `${num} times ${i} makes ${product}, say it loud, don’t be shy!`;
+      }
+    }
+
+    function getRandomIndexes(count, max) {
+      const indexes = new Set();
+      while (indexes.size < count) {
+        const rand = Math.floor(Math.random() * max) + 1;
+        indexes.add(rand);
+      }
+      return Array.from(indexes);
+    }
+
+    function playTable() {
+      stopAll();
+      const num = parseInt(tableSelect.value);
+      const lang = languageSelect.value;
+      const voiceName = voiceSelect.value;
+
+      let utterances = [];
+      output.innerHTML = '';
+      quizArea.style.display = 'none';
+      answerInput.value = '';
+      feedback.textContent = '';
+
+      const quizPoints = getRandomIndexes(2, 10);
+      quizQueue = [];
+      currentQuestion = null;
+
+      for (let i = 1; i <= 10; i++) {
+        if (quizPoints.includes(i)) {
+          quizQueue.push({ num: num, multiplier: i });
+          output.innerHTML += `<div class="table-line"><img src="avatar.png" alt="Char" /> 🤔 Question coming soon for ${num} × ${i}...</div>`;
+          continue;
+        }
+
+        const line = getRhymeLine(num, i, lang);
+        output.innerHTML += `<div class="table-line"><img src="avatar.png" alt="Char" /> ${line}</div>`;
+
+        const utter = new SpeechSynthesisUtterance(line);
+        utter.voice = voices.find(v => v.name === voiceName);
+        utter.lang = lang;
+        utter.rate = 0.9;
+        utterances.push(utter);
+      }
+
+      lastUtterances = utterances;
+      bgMusic.play();
+      speakLines(utterances, 0, quizQueue);
+    }
+
+    function speakLines(lines, index, quizQueue) {
+      if (index >= lines.length || quizQueue.length === 0) return;
+
+      if (index === 4 || index === 7) {
+        setTimeout(() => {
+          askNextQuiz();
+        }, 1000);
+        return;
+      }
+
+      lines[index].onend = () => speakLines(lines, index + 1, quizQueue);
+      synth.speak(lines[index]);
+    }
+
+    function askNextQuiz() {
+      if (quizQueue.length === 0) return;
+      const next = quizQueue.shift();
+      currentQuestion = next;
+      questionText.textContent = `❓ What is ${next.num} × ${next.multiplier}?`;
+      quizArea.style.display = 'block';
+    }
+
+    function checkAnswer() {
+      const userAns = parseInt(answerInput.value);
+      const correct = currentQuestion.num * currentQuestion.multiplier;
+      if (userAns === correct) {
+        feedback.textContent = "🎉 Woohoo! That's correct!";
+        feedback.style.color = "green";
+        setTimeout(() => {
+          quizArea.style.display = 'none';
+          answerInput.value = '';
+          feedback.textContent = '';
+          askNextQuiz();
+        }, 2000);
+      } else {
+        feedback.textContent = `❌ Try again. Correct is ${correct}`;
+        feedback.style.color = "red";
+      }
+    }
+
+    function repeatTable() {
+      stopAll();
+      output.innerHTML = '';
+      lastUtterances.forEach(u => {
+        output.innerHTML += `<div class="table-line"><img src="avatar.png" alt="Char" /> ${u.text}</div>`;
+      });
+      bgMusic.play();
+      speakLines(lastUtterances, 0, quizQueue);
+    }
+
+    function stopAll() {
+      synth.cancel();
+      bgMusic.pause();
+      bgMusic.currentTime = 0;
+      quizArea.style.display = 'none';
+    }
+  </script>
+
+</body>
+</html>
